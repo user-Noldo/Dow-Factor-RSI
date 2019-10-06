@@ -3,7 +3,7 @@
 study("Dow Factor Relative Strength Index",shorttitle = "DOW Factor RSI", overlay = false)
 src = close 
 
-length = input(14, minval=5)
+length = input(5, minval=5)
 
 // Essential Functions 
 
