@@ -1,0 +1,150 @@
+//@version=4
+
+study("Dow Factor Relative Strength Index",shorttitle = "DOW Factor RSI", overlay = false)
+src = close 
+
+length = input(14, minval=5)
+
+// Essential Functions 
+
+// Function Sum 
+
+f_sum(_src , _length) => 
+
+    _output  = 0.00 
+    
+    _length_adjusted = _length < 1 ? 1 : _length
+    
+    for i = 0 to _length_adjusted-1
+        _output := _output + _src[i]
+
+
+f_sma(_src, _length)=>
+    _length_adjusted = _length < 1 ? 1 : _length
+    float _sum = 0
+    for _i = 0 to (_length_adjusted - 1)
+        _sum := _sum + _src[_i]
+    _return = _sum / _length_adjusted
+   
+
+// Unlocked Exponential Moving Average Function
+
+f_ema(_src, _length)=>
+    _length_adjusted = _length < 1 ? 1 : _length
+    _multiplier = 2 / (_length_adjusted + 1)
+    _return  = 0.00
+    _return := na(_return[1]) ? _src : ((_src - _return[1]) * _multiplier) + _return[1]
+
+
+// Function Standard Deviation
+
+f_stdev(_src,_length) =>
+
+    float _output = na 
+    _length_adjusted = _length < 2 ? 2 : _length
+    _avg  = f_ema(_src , _length_adjusted)
+    evar  = (_src - _avg) * (_src - _avg)
+    evar2 = ((f_sum(evar,_length_adjusted))/_length_adjusted)
+    
+    _output := sqrt(evar2)
+
+
+// Linear Regression Channels : 
+
+f_pearson_corr(_src1, _src2, _length) =>
+
+    _length_adjusted = _length < 2 ? 2 : _length
+    _ema1 = f_ema(_src1, _length_adjusted)
+    _ema2 = f_ema(_src2, _length_adjusted)
+    isum = 0.0
+    for i = 0 to _length_adjusted - 1
+        isum := isum + (_src1[i] - _ema1) * (_src2[i] - _ema2)
+    isumsq1 = 0.0
+    for i = 0 to _length_adjusted - 1
+        isumsq1 := isumsq1 + pow(_src1[i] - _ema1, 2)
+    isumsq2 = 0.0
+    for i = 0 to _length_adjusted - 1
+        isumsq2 := isumsq2 + pow(_src2[i] - _ema2, 2)
+    pcc = isum/(sqrt(isumsq1*isumsq2))
+    pcc
+
+
+// Dow Theory Cycles 
+
+
+dow_coeff = f_pearson_corr(src,volume,length)
+
+dow_factor = (1 + dow_coeff)
+
+
+// RSI (Close)
+
+// Function RMA 
+
+f_rma(_src, _length) =>
+    _length_adjusted = _length < 1 ? 1 : _length
+    alpha = _length_adjusted
+    sum = 0.0
+    sum := (_src + (alpha - 1) * nz(sum[1])) / alpha
+
+
+// Function Relative Strength Index (RSI)
+
+f_rsi(_src, _length) => 
+
+    _output = 0.00 
+    _length_adjusted = _length < 0 ? 0 : _length
+
+    u = _length_adjusted < 1 ? max(_src - _src[_length_adjusted], 0) : max(_src - _src[1] , 0) // upward change
+    d = _length_adjusted < 1 ? max(_src[_length_adjusted] - _src, 0) : max(_src[1] - _src , 0) // downward change
+    rs = f_rma(u, _length) / f_rma(d, _length)
+    res = 100 - 100 / (1 + rs)
+    res
+
+
+_rsi = f_rsi(src, length)
+_rsi_dow_temp = _rsi * ( 1 + dow_factor)
+
+_coeff_rsi = (_rsi_dow_temp + 100 - _rsi) / 100 
+
+_rsi_dow_adjusted = _rsi_dow_temp /_coeff_rsi
+
+
+// Plotage 
+
+oversold   = input(25 , type = input.integer , title = "Oversold")   
+overbought = input(75 , type = input.integer , title = "Overbought") 
+
+zero    = 0 
+hundred = 100
+limit   = 50
+
+// Plot Data 
+
+stagline       = hline(limit      , color=color.new(color.white,0)   , linewidth=1, editable=false)
+zeroline       = hline(zero       , color=color.new(color.silver,100), linewidth=0, editable=false)
+hundredline    = hline(hundred    , color=color.new(color.silver,100), linewidth=0, editable=false)
+oversoldline   = hline(oversold   , color=color.new(color.silver,100), linewidth=0, editable=false)
+overboughtline = hline(overbought , color=color.new(color.silver,100), linewidth=0, editable=false)
+
+// Filling Borders
+
+fill(zeroline       , oversoldline   , color=color.maroon  , transp=88 , title = "Oversold Area")
+fill(oversoldline   , stagline       , color=color.red     , transp=80 , title = "Bear Market")
+fill(stagline       , overboughtline , color=color.green   , transp=80 , title = "Bull Market")
+fill(overboughtline , hundredline    , color=color.teal    , transp=88 , title = "Overbought Market")
+
+
+// Plot DOW Factor RSI
+
+plot(_rsi_dow_adjusted, color = #F4C430 , linewidth = 2 , title = "DOW F-RSI" , transp = 0)
+
+// Plot border lines
+
+plot(oversold  ,style = plot.style_line,color = color.new(color.maroon,30),linewidth = 1)
+plot(overbought,style = plot.style_line,color = color.new(color.teal,30)  ,linewidth = 1)
+
+
+plot(zero     ,style = plot.style_line , color = color.new(color.silver,30) , linewidth = 1 ,editable = false)
+plot(hundred  ,style = plot.style_line , color = color.new(color.silver,30) , linewidth = 1 ,editable = false)
+
