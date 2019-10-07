@@ -103,7 +103,7 @@ f_rsi(_src, _length) =>
 
 
 _rsi = f_rsi(src, length)
-_rsi_dow_temp = _rsi * ( 1 + dow_factor)
+_rsi_dow_temp = _rsi * (  dow_factor)
 
 _coeff_rsi = (_rsi_dow_temp + 100 - _rsi) / 100 
 
